@@ -1,0 +1,6 @@
+{
+  "name": "FasalNet - AI Kisan Market",
+  "description": "AI-powered agricultural mandi & direct farmer marketplace connecting Kisans with buyers, real-time APMC mandi bhav, crop health diagnostics, and smart advisory.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
