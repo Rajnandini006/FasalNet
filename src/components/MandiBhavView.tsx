@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MandiPrice } from '../types';
-import { TrendingUp, TrendingDown, Minus, Sparkles, Filter, Calculator, ArrowUpDown, ChevronRight, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Sparkles, Filter, Calculator, ArrowUpDown, ChevronRight, X, LineChart as LineChartIcon, Table as TableIcon } from 'lucide-react';
+import { PriceTrendsChart } from './PriceTrendsChart';
 
 interface MandiBhavViewProps {
   mandiPrices: MandiPrice[];
@@ -20,6 +21,8 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
   const [sortBy, setSortBy] = useState<'price' | 'change' | 'arrivals'>('price');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [activeMandiForecast, setActiveMandiForecast] = useState<MandiPrice | null>(null);
+  const [selectedTrendCommodityId, setSelectedTrendCommodityId] = useState<string>('mp-1');
+  const [activeSubView, setActiveSubView] = useState<'all' | 'chart' | 'table'>('all');
 
   // Profit Calculator State
   const [showCalculator, setShowCalculator] = useState(false);
@@ -68,26 +71,67 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
     }
   };
 
+  const handleRowClick = (item: MandiPrice) => {
+    setSelectedTrendCommodityId(item.id);
+    setActiveMandiForecast(item);
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Controls Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold font-display text-slate-900 flex items-center gap-2">
-            <span>{isHi ? 'लाइव एपीएमसी मंडी भाव' : 'Live APMC Mandi Bhav'}</span>
+            <span>{isHi ? 'लाइव एपीएमसी मंडी भाव एवं मूल्य रुझान' : 'Live APMC Mandi Bhav & Price Trends'}</span>
             <span className="text-xs font-mono font-normal text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
               Agmarknet Synced
             </span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {isHi
-              ? 'दैनिक आवक, न्यूनतम/अधिकतम भाव एवं कृत्रिम बुद्धिमत्ता (AI) द्वारा मूल्य भविष्यवाणी'
-              : 'Daily arrivals, modal benchmark rates & AI price trajectory forecasts across mandis'}
+              ? 'दैनिक आवक, 7-दिवसीय मूल्य ग्राफिक्स, न्यूनतम/अधिकतम भाव एवं कृत्रिम बुद्धिमत्ता (AI) द्वारा बिक्री सलाह'
+              : 'Interactive 7-day fluctuation charts, daily arrivals, modal benchmark rates & AI sell/hold timing advisor'}
           </p>
         </div>
 
-        {/* Action Controls */}
+        {/* Action Controls & View Mode Tabs */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Subview Selector */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveSubView('all')}
+              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                activeSubView === 'all'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {isHi ? 'चार्ट + तालिका' : 'Overview (Both)'}
+            </button>
+            <button
+              onClick={() => setActiveSubView('chart')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                activeSubView === 'chart'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LineChartIcon className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{isHi ? 'मूल्य रुझान चार्ट' : 'Price Trends Chart'}</span>
+            </button>
+            <button
+              onClick={() => setActiveSubView('table')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                activeSubView === 'table'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TableIcon className="w-3.5 h-3.5 text-slate-600" />
+              <span>{isHi ? 'मंडी तालिका' : 'Mandi Table'}</span>
+            </button>
+          </div>
+
           {/* State Filter Buttons */}
           <div className="flex items-center gap-1 overflow-x-auto max-w-full pb-1 md:pb-0">
             {states.map((st) => (
@@ -115,6 +159,15 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Recharts Price Trends Visualization Section */}
+      {(activeSubView === 'all' || activeSubView === 'chart') && (
+        <PriceTrendsChart
+          language={language}
+          initialCommodityId={selectedTrendCommodityId}
+          onSellCommodity={onSelectCropToSell}
+        />
+      )}
 
       {/* Interactive Mandi Net Revenue Calculator (Optional Dropdown) */}
       {showCalculator && (
@@ -175,145 +228,161 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
       )}
 
       {/* High Density Mandi Price Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-50/90 text-slate-600 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
-                <th className="py-3 px-4">{isHi ? 'फसल एवं किस्म' : 'Commodity & Variety'}</th>
-                <th className="py-3 px-4">{isHi ? 'मंडी एवं राज्य' : 'APMC Mandi & State'}</th>
-                <th className="py-3 px-4 text-right">
-                  <button
-                    onClick={() => toggleSort('price')}
-                    className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
-                  >
-                    <span>{isHi ? 'मॉडल भाव (₹/क्विंटल)' : 'Modal Price (₹/Qtl)'}</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </button>
-                </th>
-                <th className="py-3 px-4 text-right hidden sm:table-cell">
-                  {isHi ? 'न्यूनतम - अधिकतम' : 'Min - Max (₹)'}
-                </th>
-                <th className="py-3 px-4 text-right">
-                  <button
-                    onClick={() => toggleSort('change')}
-                    className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
-                  >
-                    <span>{isHi ? '24 घंटे बदलाव' : '24h Change'}</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </button>
-                </th>
-                <th className="py-3 px-4 text-right hidden md:table-cell">
-                  <button
-                    onClick={() => toggleSort('arrivals')}
-                    className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
-                  >
-                    <span>{isHi ? 'दैनिक आवक (MT)' : 'Arrivals (MT)'}</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </button>
-                </th>
-                <th className="py-3 px-4 text-center">{isHi ? 'AI पूर्वानुमान' : 'AI Forecast'}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredPrices.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500">
-                    {isHi ? 'कोई मंडी भाव नहीं मिला।' : 'No mandi prices found matching your search.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredPrices.map((item) => {
-                  const isBullish = item.change > 0;
-                  const isBearish = item.change < 0;
-
-                  return (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                      onClick={() => setActiveMandiForecast(item)}
+      {(activeSubView === 'all' || activeSubView === 'table') && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-bold text-sm text-slate-800">
+              {isHi ? 'दैनिक एपीएमसी मंडी दरें (क्लिक करके चार्ट देखें)' : 'Daily APMC Mandi Rates (Click row to inspect trend)'}
+            </h3>
+            <span className="text-xs text-slate-500">
+              {filteredPrices.length} {isHi ? 'मंडियां सूचीबद्ध' : 'Mandis listed'}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-50/90 text-slate-600 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider">
+                  <th className="py-3 px-4">{isHi ? 'फसल एवं किस्म' : 'Commodity & Variety'}</th>
+                  <th className="py-3 px-4">{isHi ? 'मंडी एवं राज्य' : 'APMC Mandi & State'}</th>
+                  <th className="py-3 px-4 text-right">
+                    <button
+                      onClick={() => toggleSort('price')}
+                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
                     >
-                      {/* Commodity */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900">
-                          {isHi ? item.hindiName : item.commodity}
-                        </div>
-                        <div className="text-xs text-slate-500 font-medium">
-                          {item.variety}
-                        </div>
-                      </td>
+                      <span>{isHi ? 'मॉडल भाव (₹/क्विंटल)' : 'Modal Price (₹/Qtl)'}</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="py-3 px-4 text-right hidden sm:table-cell">
+                    {isHi ? 'न्यूनतम - अधिकतम' : 'Min - Max (₹)'}
+                  </th>
+                  <th className="py-3 px-4 text-right">
+                    <button
+                      onClick={() => toggleSort('change')}
+                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                    >
+                      <span>{isHi ? '24 घंटे बदलाव' : '24h Change'}</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="py-3 px-4 text-right hidden md:table-cell">
+                    <button
+                      onClick={() => toggleSort('arrivals')}
+                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                    >
+                      <span>{isHi ? 'दैनिक आवक (MT)' : 'Arrivals (MT)'}</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="py-3 px-4 text-center">{isHi ? 'AI पूर्वानुमान' : 'AI Forecast'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredPrices.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                      {isHi ? 'कोई मंडी भाव नहीं मिला।' : 'No mandi prices found matching your search.'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPrices.map((item) => {
+                    const isBullish = item.change > 0;
+                    const isBearish = item.change < 0;
+                    const isCurrentChartSelected = selectedTrendCommodityId === item.id;
 
-                      {/* Mandi & State */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-800">{item.mandiName}</div>
-                        <div className="text-xs text-slate-500">
-                          {item.district}, {item.state}
-                        </div>
-                      </td>
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`hover:bg-slate-50/80 transition-colors cursor-pointer group ${
+                          isCurrentChartSelected ? 'bg-emerald-50/40' : ''
+                        }`}
+                        onClick={() => handleRowClick(item)}
+                      >
+                        {/* Commodity */}
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            <span>{isHi ? item.hindiName : item.commodity}</span>
+                            {isCurrentChartSelected && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" title="Active on Chart" />
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 font-medium">
+                            {item.variety}
+                          </div>
+                        </td>
 
-                      {/* Modal Price */}
-                      <td className="py-3.5 px-4 text-right">
-                        <span className="font-mono tabular-nums text-base font-extrabold text-slate-900">
-                          ₹{item.modalPrice.toLocaleString('en-IN')}
-                        </span>
-                        <div className="text-[11px] text-slate-400">per Quintal</div>
-                      </td>
+                        {/* Mandi & State */}
+                        <td className="py-3.5 px-4">
+                          <div className="font-semibold text-slate-800">{item.mandiName}</div>
+                          <div className="text-xs text-slate-500">
+                            {item.district}, {item.state}
+                          </div>
+                        </td>
 
-                      {/* Min - Max Price */}
-                      <td className="py-3.5 px-4 text-right font-mono tabular-nums text-xs text-slate-600 hidden sm:table-cell">
-                        ₹{item.minPrice} - ₹{item.maxPrice}
-                      </td>
-
-                      {/* 24h Change */}
-                      <td className="py-3.5 px-4 text-right">
-                        <div
-                          className={`inline-flex items-center gap-1 font-mono tabular-nums text-xs font-bold ${
-                            isBullish
-                              ? 'text-emerald-700'
-                              : isBearish
-                              ? 'text-rose-600'
-                              : 'text-slate-600'
-                          }`}
-                        >
-                          {isBullish && <TrendingUp className="w-3.5 h-3.5" />}
-                          {isBearish && <TrendingDown className="w-3.5 h-3.5" />}
-                          {!isBullish && !isBearish && <Minus className="w-3.5 h-3.5" />}
-                          <span>
-                            {isBullish ? '+' : ''}
-                            {item.changePercent}%
+                        {/* Modal Price */}
+                        <td className="py-3.5 px-4 text-right">
+                          <span className="font-mono tabular-nums text-base font-extrabold text-slate-900">
+                            ₹{item.modalPrice.toLocaleString('en-IN')}
                           </span>
-                        </div>
-                        <div className="text-[11px] font-mono tabular-nums text-slate-400">
-                          {isBullish ? '+' : ''}₹{item.change}
-                        </div>
-                      </td>
+                          <div className="text-[11px] text-slate-400">per Quintal</div>
+                        </td>
 
-                      {/* Daily Arrivals */}
-                      <td className="py-3.5 px-4 text-right font-mono tabular-nums text-sm font-semibold text-slate-700 hidden md:table-cell">
-                        {item.arrivalsMetricTon} MT
-                      </td>
+                        {/* Min - Max Price */}
+                        <td className="py-3.5 px-4 text-right font-mono tabular-nums text-xs text-slate-600 hidden sm:table-cell">
+                          ₹{item.minPrice} - ₹{item.maxPrice}
+                        </td>
 
-                      {/* AI Forecast Trigger */}
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMandiForecast(item);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-200 transition-colors"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>{item.bestTime}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        {/* 24h Change */}
+                        <td className="py-3.5 px-4 text-right">
+                          <div
+                            className={`inline-flex items-center gap-1 font-mono tabular-nums text-xs font-bold ${
+                              isBullish
+                                ? 'text-emerald-700'
+                                : isBearish
+                                ? 'text-rose-600'
+                                : 'text-slate-600'
+                            }`}
+                          >
+                            {isBullish && <TrendingUp className="w-3.5 h-3.5" />}
+                            {isBearish && <TrendingDown className="w-3.5 h-3.5" />}
+                            {!isBullish && !isBearish && <Minus className="w-3.5 h-3.5" />}
+                            <span>
+                              {isBullish ? '+' : ''}
+                              {item.changePercent}%
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-mono tabular-nums text-slate-400">
+                            {isBullish ? '+' : ''}₹{item.change}
+                          </div>
+                        </td>
+
+                        {/* Daily Arrivals */}
+                        <td className="py-3.5 px-4 text-right font-mono tabular-nums text-sm font-semibold text-slate-700 hidden md:table-cell">
+                          {item.arrivalsMetricTon} MT
+                        </td>
+
+                        {/* AI Forecast Trigger */}
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(item);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-200 transition-colors"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{item.bestTime}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* AI Mandi Price Prediction Drawer/Modal */}
       {activeMandiForecast && (
@@ -321,7 +390,7 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
           <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
             <button
               onClick={() => setActiveMandiForecast(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -366,10 +435,18 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
-              <div className="text-xs text-slate-500">
-                Daily Arrivals: <span className="font-mono font-bold text-slate-700">{activeMandiForecast.arrivalsMetricTon} MT</span>
-              </div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setSelectedTrendCommodityId(activeMandiForecast.id);
+                  setActiveMandiForecast(null);
+                  setActiveSubView('all');
+                }}
+                className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <LineChartIcon className="w-3.5 h-3.5" />
+                <span>Inspect in Weekly Recharts Graph</span>
+              </button>
               <button
                 onClick={() => {
                   if (onSelectCropToSell) {
@@ -377,7 +454,7 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
                   }
                   setActiveMandiForecast(null);
                 }}
-                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors cursor-pointer"
               >
                 List {activeMandiForecast.commodity.split(' ')[0]} For Sale
               </button>
@@ -388,3 +465,4 @@ export const MandiBhavView: React.FC<MandiBhavViewProps> = ({
     </div>
   );
 };
+
